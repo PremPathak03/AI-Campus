@@ -1,1 +1,4 @@
 project_id = "qhaqzovugttjirfrhmfk"
+
+[functions.parse-schedule]
+verify_jwt = false
