@@ -2,3 +2,6 @@ project_id = "qhaqzovugttjirfrhmfk"
 
 [functions.parse-schedule]
 verify_jwt = false
+
+[functions.campus-chat]
+verify_jwt = true
