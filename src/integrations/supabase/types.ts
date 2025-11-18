@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      buildings: {
+        Row: {
+          address: string | null
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          name: string
+        }
+        Insert: {
+          address?: string | null
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+        }
+        Update: {
+          address?: string | null
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+        }
+        Relationships: []
+      }
       classes: {
         Row: {
           building: string | null
@@ -105,6 +138,45 @@ export type Database = {
           },
         ]
       }
+      favorite_locations: {
+        Row: {
+          created_at: string
+          id: string
+          nickname: string | null
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nickname?: string | null
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nickname?: string | null
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "favorite_locations_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "favorite_locations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string
@@ -163,6 +235,80 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      recent_searches: {
+        Row: {
+          id: string
+          room_id: string
+          searched_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          room_id: string
+          searched_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          room_id?: string
+          searched_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recent_searches_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recent_searches_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rooms: {
+        Row: {
+          building_id: string
+          created_at: string
+          description: string | null
+          floor: string
+          id: string
+          room_number: string
+          room_type: string | null
+        }
+        Insert: {
+          building_id: string
+          created_at?: string
+          description?: string | null
+          floor: string
+          id?: string
+          room_number: string
+          room_type?: string | null
+        }
+        Update: {
+          building_id?: string
+          created_at?: string
+          description?: string | null
+          floor?: string
+          id?: string
+          room_number?: string
+          room_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rooms_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       schedules: {
         Row: {
