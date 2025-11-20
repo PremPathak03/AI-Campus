@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useConversations, useMessages, useCreateConversation, useSendMessage } from "@/hooks/useChat";
 import ChatMessage from "@/components/ChatMessage";
 import { useToast } from "@/hooks/use-toast";
+import { ChatSkeleton } from "@/components/SkeletonLoaders";
 
 const Chat = () => {
   const [userId, setUserId] = useState<string | undefined>();

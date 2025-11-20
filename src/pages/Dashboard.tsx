@@ -8,10 +8,12 @@ import { useSchedules, useClasses } from "@/hooks/useSchedules";
 import { useNotificationSettings } from "@/hooks/useNotificationSettings";
 import { useNotifications } from "@/hooks/useNotifications";
 import { format } from "date-fns";
+import { DashboardSkeleton } from "@/components/SkeletonLoaders";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [userId, setUserId] = useState<string | undefined>();
+  const [loading, setLoading] = useState(true);
   
   const { data: schedules } = useSchedules(userId);
   const { data: classes } = useClasses(schedules?.[0]?.id);
@@ -25,6 +27,7 @@ const Dashboard = () => {
         return;
       }
       setUserId(session.user.id);
+      setLoading(false);
     });
   }, [navigate]);
 
@@ -55,9 +58,17 @@ const Dashboard = () => {
 
   const nextClass = getNextClass();
 
+  if (loading) {
+    return (
+      <Layout>
+        <DashboardSkeleton />
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
-      <div className="container max-w-4xl mx-auto p-4 space-y-6 pb-24">
+      <div className="container max-w-4xl mx-auto p-4 space-y-6 pb-24 animate-fade-in">
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground">Welcome back!</p>
           <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
@@ -67,7 +78,7 @@ const Dashboard = () => {
         </div>
 
         {nextClass && (
-          <Card className="bg-primary text-primary-foreground">
+          <Card className="bg-primary text-primary-foreground animate-scale-in hover-scale">
             <CardHeader>
               <CardTitle>Next Class</CardTitle>
               <CardDescription className="text-primary-foreground/80">
@@ -90,11 +101,11 @@ const Dashboard = () => {
 
         <div className="grid gap-4 md:grid-cols-3">
           <Card 
-            className="cursor-pointer hover:bg-accent transition-colors"
+            className="cursor-pointer hover:bg-accent transition-all hover-scale"
             onClick={() => navigate("/schedule")}
           >
             <CardContent className="flex flex-col items-center justify-center p-6">
-              <Calendar className="h-12 w-12 mb-2 text-primary" />
+              <Calendar className="h-12 w-12 mb-2 text-primary transition-transform" />
               <h3 className="font-semibold">Schedule</h3>
               <p className="text-xs text-muted-foreground text-center mt-1">
                 View and manage your classes
@@ -103,11 +114,11 @@ const Dashboard = () => {
           </Card>
 
           <Card 
-            className="cursor-pointer hover:bg-accent transition-colors"
+            className="cursor-pointer hover:bg-accent transition-all hover-scale"
             onClick={() => navigate("/chat")}
           >
             <CardContent className="flex flex-col items-center justify-center p-6">
-              <MessageSquare className="h-12 w-12 mb-2 text-primary" />
+              <MessageSquare className="h-12 w-12 mb-2 text-primary transition-transform" />
               <h3 className="font-semibold">AI Chat</h3>
               <p className="text-xs text-muted-foreground text-center mt-1">
                 Ask questions about campus
@@ -116,11 +127,11 @@ const Dashboard = () => {
           </Card>
 
           <Card 
-            className="cursor-pointer hover:bg-accent transition-colors"
+            className="cursor-pointer hover:bg-accent transition-all hover-scale"
             onClick={() => navigate("/navigate")}
           >
             <CardContent className="flex flex-col items-center justify-center p-6">
-              <Compass className="h-12 w-12 mb-2 text-primary" />
+              <Compass className="h-12 w-12 mb-2 text-primary transition-transform" />
               <h3 className="font-semibold">Navigate</h3>
               <p className="text-xs text-muted-foreground text-center mt-1">
                 Find your way around campus

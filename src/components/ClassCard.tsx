@@ -19,7 +19,7 @@ const ClassCard = ({ classItem, onEdit, onDelete }: ClassCardProps) => {
   };
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className="hover:shadow-md transition-all hover-scale animate-fade-in">
       <CardContent className="p-4">
         <div className="flex items-start justify-between">
           <div className="flex-1">
