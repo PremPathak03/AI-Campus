@@ -12,7 +12,7 @@ interface RoomCardProps {
 
 const RoomCard = ({ room, onNavigate, onToggleFavorite, isFavorite }: RoomCardProps) => {
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className="hover:shadow-md transition-all hover-scale animate-fade-in">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1">
@@ -46,7 +46,7 @@ const RoomCard = ({ room, onNavigate, onToggleFavorite, isFavorite }: RoomCardPr
         {room.description && (
           <p className="text-sm text-muted-foreground">{room.description}</p>
         )}
-        <Button onClick={onNavigate} className="w-full" size="sm">
+        <Button onClick={onNavigate} className="w-full hover-scale" size="sm">
           <Navigation className="h-4 w-4 mr-2" />
           Get Directions
         </Button>

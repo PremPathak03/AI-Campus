@@ -11,11 +11,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNotificationSettings, useUpsertNotificationSettings } from "@/hooks/useNotificationSettings";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useToast } from "@/hooks/use-toast";
-import { Bell, LogOut, User, Clock, Moon } from "lucide-react";
+import { Bell, LogOut, User, Clock, Moon, Sun, Monitor } from "lucide-react";
+import { useTheme } from "next-themes";
 
 const Profile = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { theme, setTheme } = useTheme();
   const [userId, setUserId] = useState<string | undefined>();
   const [profile, setProfile] = useState<any>(null);
   const [fullName, setFullName] = useState("");
@@ -111,7 +113,7 @@ const Profile = () => {
 
   return (
     <Layout>
-      <div className="container max-w-2xl mx-auto p-4 space-y-6 pb-24">
+      <div className="container max-w-2xl mx-auto p-4 space-y-6 pb-24 animate-fade-in">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold text-foreground">Settings</h1>
           <Button variant="ghost" size="icon" onClick={handleLogout}>
@@ -120,7 +122,7 @@ const Profile = () => {
         </div>
 
         {/* Profile Section */}
-        <Card>
+        <Card className="animate-fade-in">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="h-5 w-5" />
@@ -151,8 +153,50 @@ const Profile = () => {
           </CardContent>
         </Card>
 
+        {/* Appearance Settings */}
+        <Card className="animate-fade-in">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sun className="h-5 w-5" />
+              Appearance
+            </CardTitle>
+            <CardDescription>Customize how AI Campus looks</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Theme</Label>
+              <div className="grid grid-cols-3 gap-2">
+                <Button
+                  variant={theme === "light" ? "default" : "outline"}
+                  onClick={() => setTheme("light")}
+                  className="w-full transition-all hover-scale"
+                >
+                  <Sun className="h-4 w-4 mr-2" />
+                  Light
+                </Button>
+                <Button
+                  variant={theme === "dark" ? "default" : "outline"}
+                  onClick={() => setTheme("dark")}
+                  className="w-full transition-all hover-scale"
+                >
+                  <Moon className="h-4 w-4 mr-2" />
+                  Dark
+                </Button>
+                <Button
+                  variant={theme === "system" ? "default" : "outline"}
+                  onClick={() => setTheme("system")}
+                  className="w-full transition-all hover-scale"
+                >
+                  <Monitor className="h-4 w-4 mr-2" />
+                  System
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Notification Settings */}
-        <Card>
+        <Card className="animate-fade-in">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Bell className="h-5 w-5" />
