@@ -1,7 +1,7 @@
 project_id = "qhaqzovugttjirfrhmfk"
 
 [functions.parse-schedule]
-verify_jwt = false
+verify_jwt = true
 
 [functions.campus-chat]
 verify_jwt = true
