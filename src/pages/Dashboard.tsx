@@ -36,7 +36,8 @@ const Dashboard = () => {
 
   // Request notification permission on first load
   useEffect(() => {
-    if (permission === "default" && settings?.enabled) {
+    // Show banner if permission is default and either settings are enabled or don't exist yet
+    if (permission === "default" && (!settings || settings.enabled)) {
       setShowNotificationBanner(true);
     }
   }, [permission, settings]);
@@ -94,7 +95,7 @@ const Dashboard = () => {
           </p>
         </div>
 
-        {showNotificationBanner && settings?.enabled && (
+        {showNotificationBanner && (
           <Alert>
             <Bell className="h-4 w-4" />
             <AlertDescription className="flex items-center justify-between">
@@ -106,7 +107,7 @@ const Dashboard = () => {
           </Alert>
         )}
 
-        {permission === "denied" && settings?.enabled && (
+        {permission === "denied" && (!settings || settings.enabled) && (
           <Alert variant="destructive">
             <BellOff className="h-4 w-4" />
             <AlertDescription>
