@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
@@ -7,6 +8,42 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Input validation schema
+interface ParseScheduleInput {
+  fileContent: string;
+  fileName: string;
+}
+
+function validateInput(input: any): { valid: boolean; error?: string; data?: ParseScheduleInput } {
+  if (!input || typeof input !== 'object') {
+    return { valid: false, error: 'Invalid request body' };
+  }
+
+  const { fileContent, fileName } = input;
+
+  if (!fileContent || typeof fileContent !== 'string') {
+    return { valid: false, error: 'fileContent is required and must be a string' };
+  }
+
+  if (fileContent.length > 1048576) { // 1MB limit
+    return { valid: false, error: 'File content too large (max 1MB)' };
+  }
+
+  if (!fileName || typeof fileName !== 'string') {
+    return { valid: false, error: 'fileName is required and must be a string' };
+  }
+
+  if (fileName.length > 255) {
+    return { valid: false, error: 'fileName too long (max 255 characters)' };
+  }
+
+  if (!/^[\w\-. ]+$/.test(fileName)) {
+    return { valid: false, error: 'fileName contains invalid characters' };
+  }
+
+  return { valid: true, data: { fileContent, fileName } };
+}
 
 interface ParsedClass {
   course_name: string;
@@ -27,7 +64,41 @@ serve(async (req) => {
   }
 
   try {
-    const { fileContent, fileName } = await req.json();
+    // Verify authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Parse and validate input
+    const requestBody = await req.json();
+    const validation = validateInput(requestBody);
+    
+    if (!validation.valid) {
+      return new Response(
+        JSON.stringify({ error: validation.error }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { fileContent, fileName } = validation.data!;
 
     console.log('Parsing schedule file:', fileName);
 

@@ -2,6 +2,44 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// Input validation
+interface ChatInput {
+  conversationId: string;
+  message: string;
+}
+
+function validateInput(input: any): { valid: boolean; error?: string; data?: ChatInput } {
+  if (!input || typeof input !== 'object') {
+    return { valid: false, error: 'Invalid request body' };
+  }
+
+  const { conversationId, message } = input;
+
+  if (!conversationId || typeof conversationId !== 'string') {
+    return { valid: false, error: 'conversationId is required and must be a string' };
+  }
+
+  // Validate UUID format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(conversationId)) {
+    return { valid: false, error: 'conversationId must be a valid UUID' };
+  }
+
+  if (!message || typeof message !== 'string') {
+    return { valid: false, error: 'message is required and must be a string' };
+  }
+
+  if (message.length < 1) {
+    return { valid: false, error: 'message cannot be empty' };
+  }
+
+  if (message.length > 4000) {
+    return { valid: false, error: 'message too long (max 4000 characters)' };
+  }
+
+  return { valid: true, data: { conversationId, message } };
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -57,7 +95,18 @@ serve(async (req) => {
       },
     });
 
-    const { conversationId, message } = await req.json();
+    // Parse and validate input
+    const requestBody = await req.json();
+    const validation = validateInput(requestBody);
+    
+    if (!validation.valid) {
+      return new Response(
+        JSON.stringify({ error: validation.error }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { conversationId, message } = validation.data!;
 
     // Get conversation history
     const { data: messages, error: messagesError } = await supabase
