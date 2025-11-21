@@ -15,6 +15,8 @@ import {
   useDeleteClass,
   Class,
 } from "@/hooks/useSchedules";
+import { useNotificationSettings } from "@/hooks/useNotificationSettings";
+import { useNotifications } from "@/hooks/useNotifications";
 import ClassCard from "@/components/ClassCard";
 import ClassForm from "@/components/ClassForm";
 import ScheduleImport from "@/components/ScheduleImport";
@@ -31,6 +33,8 @@ const Schedule = () => {
 
   const { data: schedules } = useSchedules(userId);
   const { data: classes } = useClasses(selectedScheduleId);
+  const { data: settings } = useNotificationSettings(userId);
+  const { scheduleClassReminder } = useNotifications();
   const createSchedule = useCreateSchedule();
   const createClass = useCreateClass();
   const updateClass = useUpdateClass();
@@ -63,13 +67,19 @@ const Schedule = () => {
   };
 
   const handleAddClass = async (data: any) => {
-    await createClass.mutateAsync(data);
+    const newClass = await createClass.mutateAsync(data);
+    if (settings) {
+      scheduleClassReminder(newClass, settings);
+    }
     setIsAddingClass(false);
   };
 
   const handleUpdateClass = async (data: any) => {
     if (!editingClass) return;
-    await updateClass.mutateAsync({ ...data, id: editingClass.id });
+    const updatedClass = await updateClass.mutateAsync({ ...data, id: editingClass.id });
+    if (settings) {
+      scheduleClassReminder(updatedClass, settings);
+    }
     setEditingClass(null);
   };
 
