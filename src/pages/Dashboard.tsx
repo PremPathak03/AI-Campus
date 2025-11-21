@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MessageSquare, Compass } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Calendar, MessageSquare, Compass, Bell, BellOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSchedules, useClasses } from "@/hooks/useSchedules";
 import { useNotificationSettings } from "@/hooks/useNotificationSettings";
@@ -18,7 +20,8 @@ const Dashboard = () => {
   const { data: schedules } = useSchedules(userId);
   const { data: classes } = useClasses(schedules?.[0]?.id);
   const { data: settings } = useNotificationSettings(userId);
-  const { scheduleClassReminder } = useNotifications();
+  const { permission, requestPermission, scheduleClassReminder } = useNotifications();
+  const [showNotificationBanner, setShowNotificationBanner] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -31,14 +34,28 @@ const Dashboard = () => {
     });
   }, [navigate]);
 
+  // Request notification permission on first load
+  useEffect(() => {
+    if (permission === "default" && settings?.enabled) {
+      setShowNotificationBanner(true);
+    }
+  }, [permission, settings]);
+
   // Schedule notifications for today's classes
   useEffect(() => {
-    if (classes && settings) {
+    if (classes && settings && permission === "granted") {
       classes.forEach((classItem) => {
         scheduleClassReminder(classItem, settings);
       });
     }
-  }, [classes, settings, scheduleClassReminder]);
+  }, [classes, settings, permission, scheduleClassReminder]);
+
+  const handleEnableNotifications = async () => {
+    const granted = await requestPermission();
+    if (granted) {
+      setShowNotificationBanner(false);
+    }
+  };
 
   const getNextClass = () => {
     if (!classes) return null;
@@ -76,6 +93,27 @@ const Dashboard = () => {
             {format(new Date(), "EEEE, MMMM d, yyyy")}
           </p>
         </div>
+
+        {showNotificationBanner && settings?.enabled && (
+          <Alert>
+            <Bell className="h-4 w-4" />
+            <AlertDescription className="flex items-center justify-between">
+              <span>Enable notifications to get reminders for your classes</span>
+              <Button size="sm" onClick={handleEnableNotifications}>
+                Enable
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {permission === "denied" && settings?.enabled && (
+          <Alert variant="destructive">
+            <BellOff className="h-4 w-4" />
+            <AlertDescription>
+              Notifications are blocked. Enable them in your browser settings to receive class reminders.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {nextClass && (
           <Card className="bg-primary text-primary-foreground animate-scale-in hover-scale">
