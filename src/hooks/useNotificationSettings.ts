@@ -39,20 +39,31 @@ export const useUpsertNotificationSettings = () => {
 
   return useMutation({
     mutationFn: async (settings: Partial<NotificationSettings> & { user_id: string }) => {
+      console.log("useUpsertNotificationSettings - mutationFn called with:", settings);
+      
       const { data, error } = await supabase
         .from("notification_settings")
         .upsert(settings)
         .select()
         .single();
       
-      if (error) throw error;
+      console.log("Supabase upsert result:", { data, error });
+      
+      if (error) {
+        console.error("Supabase upsert error:", error);
+        throw error;
+      }
+      
+      console.log("Settings saved successfully:", data);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("Mutation onSuccess:", data);
       queryClient.invalidateQueries({ queryKey: ["notification_settings"] });
       toast({ title: "Settings saved successfully" });
     },
     onError: (error: Error) => {
+      console.error("Mutation onError:", error);
       toast({ 
         title: "Failed to save settings", 
         description: error.message,
