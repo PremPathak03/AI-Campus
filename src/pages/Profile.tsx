@@ -89,7 +89,6 @@ const Profile = () => {
 
   const handleSaveNotificationSettings = async () => {
     if (!userId) {
-      console.error("No userId available");
       toast({
         title: "Error",
         description: "User ID not found. Please try logging in again.",
@@ -98,8 +97,20 @@ const Profile = () => {
       return;
     }
 
-    console.log("Saving notification settings for user:", userId);
-    console.log("Settings data:", {
+    if (enabled && permission !== "granted") {
+      const granted = await requestPermission();
+      if (!granted) {
+        toast({
+          title: "Permission Required",
+          description: "You need to allow browser notifications to enable this feature. Please try again and click 'Allow' when prompted.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    upsertSettings.mutate({
+      user_id: userId,
       enabled,
       reminder_minutes: reminderMinutes,
       sound_enabled: soundEnabled,
@@ -107,36 +118,6 @@ const Profile = () => {
       dnd_start_time: dndEnabled ? dndStart : null,
       dnd_end_time: dndEnabled ? dndEnd : null,
     });
-
-    if (enabled && permission !== "granted") {
-      console.log("Requesting notification permission...");
-      const granted = await requestPermission();
-      if (!granted) {
-        console.log("Permission denied");
-        return;
-      }
-      console.log("Permission granted");
-    }
-
-    try {
-      console.log("Calling upsertSettings.mutate...");
-      upsertSettings.mutate({
-        user_id: userId,
-        enabled,
-        reminder_minutes: reminderMinutes,
-        sound_enabled: soundEnabled,
-        dnd_enabled: dndEnabled,
-        dnd_start_time: dndEnabled ? dndStart : null,
-        dnd_end_time: dndEnabled ? dndEnd : null,
-      });
-    } catch (error) {
-      console.error("Error saving notification settings:", error);
-      toast({
-        title: "Error saving settings",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
-      });
-    }
   };
 
   const handleLogout = async () => {
