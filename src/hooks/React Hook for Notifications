@@ -1,0 +1,106 @@
+// src/hooks/useNotifications.ts
+
+import { useState, useEffect, useCallback } from 'react';
+import NotificationManager, { NotificationSettings } from '../services/NotificationManager';
+
+interface UseNotificationsReturn {
+  isSupported: boolean;
+  hasPermission: boolean;
+  permissionStatus: string;
+  requestPermission: () => Promise<boolean>;
+  scheduleReminder: (
+    className: string,
+    classTime: Date,
+    minutesBefore: number,
+    settings: NotificationSettings
+  ) => Promise<number | null>;
+  cancelNotification: (notificationId: number) => Promise<void>;
+  cancelAllNotifications: () => Promise<void>;
+  sendTestNotification: (soundEnabled?: boolean) => Promise<void>;
+  scheduledCount: number;
+}
+
+export const useNotifications = (): UseNotificationsReturn => {
+  const [isSupported, setIsSupported] = useState(false);
+  const [hasPermission, setHasPermission] = useState(false);
+  const [permissionStatus, setPermissionStatus] = useState('unknown');
+  const [scheduledCount, setScheduledCount] = useState(0);
+
+  // Initialize on mount
+  useEffect(() => {
+    const checkStatus = async () => {
+      setIsSupported(NotificationManager.isSupported());
+      setHasPermission(NotificationManager.hasPermission());
+      setPermissionStatus(NotificationManager.getPermissionStatus());
+      setScheduledCount(NotificationManager.getScheduledReminders().length);
+    };
+
+    checkStatus();
+
+    // Poll for status changes every 5 seconds
+    const interval = setInterval(checkStatus, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Request permission
+  const requestPermission = useCallback(async (): Promise<boolean> => {
+    const granted = await NotificationManager.requestPermission();
+    setHasPermission(granted);
+    setPermissionStatus(NotificationManager.getPermissionStatus());
+    return granted;
+  }, []);
+
+  // Schedule reminder
+  const scheduleReminder = useCallback(
+    async (
+      className: string,
+      classTime: Date,
+      minutesBefore: number,
+      settings: NotificationSettings
+    ): Promise<number | null> => {
+      const id = await NotificationManager.scheduleClassReminder(
+        className,
+        classTime,
+        minutesBefore,
+        settings
+      );
+      
+      if (id !== null) {
+        setScheduledCount(NotificationManager.getScheduledReminders().length);
+      }
+      
+      return id;
+    },
+    []
+  );
+
+  // Cancel notification
+  const cancelNotification = useCallback(async (notificationId: number): Promise<void> => {
+    await NotificationManager.cancelNotification(notificationId);
+    setScheduledCount(NotificationManager.getScheduledReminders().length);
+  }, []);
+
+  // Cancel all notifications
+  const cancelAllNotifications = useCallback(async (): Promise<void> => {
+    await NotificationManager.cancelAllNotifications();
+    setScheduledCount(0);
+  }, []);
+
+  // Send test notification
+  const sendTestNotification = useCallback(async (soundEnabled: boolean = true): Promise<void> => {
+    await NotificationManager.sendTestNotification(soundEnabled);
+  }, []);
+
+  return {
+    isSupported,
+    hasPermission,
+    permissionStatus,
+    requestPermission,
+    scheduleReminder,
+    cancelNotification,
+    cancelAllNotifications,
+    sendTestNotification,
+    scheduledCount,
+  };
+};
