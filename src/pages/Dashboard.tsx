@@ -53,9 +53,8 @@ const Dashboard = () => {
 
   const handleEnableNotifications = async () => {
     const granted = await requestPermission();
-    if (granted) {
-      setShowNotificationBanner(false);
-    }
+    // Hide banner regardless of outcome - if denied, the error alert will show instead
+    setShowNotificationBanner(false);
   };
 
   const getNextClass = () => {
