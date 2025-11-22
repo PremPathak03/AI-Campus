@@ -107,7 +107,7 @@ const Dashboard = () => {
           </Alert>
         )}
 
-        {permission === "denied" && (!settings || settings.enabled) && (
+        {permission === "denied" && settings?.enabled && (
           <Alert variant="destructive">
             <BellOff className="h-4 w-4" />
             <AlertDescription>
