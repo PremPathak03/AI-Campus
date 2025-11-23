@@ -3,15 +3,14 @@ importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
 // Initialize Firebase in the service worker
-// TODO: Replace with your actual Firebase project config
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID",
-  measurementId: "YOUR_MEASUREMENT_ID"
+  apiKey: "AIzaSyAYT6ObXDXR2j7TDeLyQOHAYDp53KVKPvE",
+  authDomain: "ai-campus-83836.firebaseapp.com",
+  projectId: "ai-campus-83836",
+  storageBucket: "ai-campus-83836.firebasestorage.app",
+  messagingSenderId: "942265549590",
+  appId: "1:942265549590:web:6f968a632077b2d432c637",
+  measurementId: "G-MSH1MD89G7"
 };
 
 firebase.initializeApp(firebaseConfig);
