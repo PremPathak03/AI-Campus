@@ -24,10 +24,29 @@ export const useNotificationSettings = (userId: string | undefined) => {
         .from("notification_settings")
         .select("*")
         .eq("user_id", userId)
-        .single();
+        .maybeSingle();
       
-      if (error && error.code !== "PGRST116") throw error;
-      return data as NotificationSettings | null;
+      if (error) throw error;
+      
+      // If no settings exist, create default settings
+      if (!data) {
+        const { data: newSettings, error: insertError } = await supabase
+          .from("notification_settings")
+          .insert({
+            user_id: userId,
+            enabled: false, // Default to disabled until user explicitly enables
+            reminder_minutes: 15,
+            sound_enabled: true,
+            dnd_enabled: false,
+          })
+          .select()
+          .single();
+        
+        if (insertError) throw insertError;
+        return newSettings as NotificationSettings;
+      }
+      
+      return data as NotificationSettings;
     },
     enabled: !!userId,
   });

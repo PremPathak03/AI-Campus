@@ -53,8 +53,23 @@ const Dashboard = () => {
 
   const handleEnableNotifications = async () => {
     const granted = await requestPermission();
-    // Hide banner regardless of outcome - if denied, the error alert will show instead
     setShowNotificationBanner(false);
+    
+    // Create or update notification settings in database
+    if (userId) {
+      const { supabase } = await import("@/integrations/supabase/client");
+      await supabase
+        .from("notification_settings")
+        .upsert({
+          user_id: userId,
+          enabled: granted, // Only enable if permission was granted
+          reminder_minutes: 15,
+          sound_enabled: true,
+          dnd_enabled: false,
+        })
+        .select()
+        .single();
+    }
   };
 
   const getNextClass = () => {

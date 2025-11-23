@@ -97,18 +97,31 @@ const Profile = () => {
       return;
     }
 
+    // If user wants to enable notifications, check browser permission
     if (enabled && permission !== "granted") {
       const granted = await requestPermission();
       if (!granted) {
+        // Save settings as disabled since browser permission was denied
+        upsertSettings.mutate({
+          user_id: userId,
+          enabled: false,
+          reminder_minutes: reminderMinutes,
+          sound_enabled: soundEnabled,
+          dnd_enabled: dndEnabled,
+          dnd_start_time: dndEnabled ? dndStart : null,
+          dnd_end_time: dndEnabled ? dndEnd : null,
+        });
+        
         toast({
-          title: "Permission Required",
-          description: "You need to allow browser notifications to enable this feature. Please try again and click 'Allow' when prompted.",
+          title: "Browser Permission Denied",
+          description: "Notifications have been saved as disabled. Enable browser notifications in your settings to activate this feature.",
           variant: "destructive",
         });
         return;
       }
     }
 
+    // Save settings to database
     upsertSettings.mutate({
       user_id: userId,
       enabled,
