@@ -216,6 +216,7 @@ export type Database = {
           dnd_end_time: string | null
           dnd_start_time: string | null
           enabled: boolean
+          fcm_token: string | null
           id: string
           reminder_minutes: number
           sound_enabled: boolean
@@ -228,6 +229,7 @@ export type Database = {
           dnd_end_time?: string | null
           dnd_start_time?: string | null
           enabled?: boolean
+          fcm_token?: string | null
           id?: string
           reminder_minutes?: number
           sound_enabled?: boolean
@@ -240,6 +242,7 @@ export type Database = {
           dnd_end_time?: string | null
           dnd_start_time?: string | null
           enabled?: boolean
+          fcm_token?: string | null
           id?: string
           reminder_minutes?: number
           sound_enabled?: boolean

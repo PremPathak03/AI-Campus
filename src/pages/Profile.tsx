@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useNotificationSettings, useUpsertNotificationSettings } from "@/hooks/useNotificationSettings";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useFirebaseMessaging } from "@/hooks/useFirebaseMessaging";
 import { useToast } from "@/hooks/use-toast";
 import { Bell, LogOut, User, Clock, Moon, Sun, Monitor } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -26,6 +27,7 @@ const Profile = () => {
   const { data: settings } = useNotificationSettings(userId);
   const upsertSettings = useUpsertNotificationSettings();
   const { permission, requestPermission, testNotification } = useNotifications();
+  const { requestPermissionAndGetToken } = useFirebaseMessaging(userId);
 
   const [enabled, setEnabled] = useState(true);
   const [reminderMinutes, setReminderMinutes] = useState(15);
@@ -97,24 +99,13 @@ const Profile = () => {
       return;
     }
 
-    // If user wants to enable notifications, check browser permission
+    // If user wants to enable notifications, get FCM token
     if (enabled && permission !== "granted") {
-      const granted = await requestPermission();
-      if (!granted) {
-        // Save settings as disabled since browser permission was denied
-        upsertSettings.mutate({
-          user_id: userId,
-          enabled: false,
-          reminder_minutes: reminderMinutes,
-          sound_enabled: soundEnabled,
-          dnd_enabled: dndEnabled,
-          dnd_start_time: dndEnabled ? dndStart : null,
-          dnd_end_time: dndEnabled ? dndEnd : null,
-        });
-        
+      const token = await requestPermissionAndGetToken();
+      if (!token) {
         toast({
-          title: "Browser Permission Denied",
-          description: "Notifications have been saved as disabled. Enable browser notifications in your settings to activate this feature.",
+          title: "Failed to enable notifications",
+          description: "Please allow notifications in your browser settings",
           variant: "destructive",
         });
         return;

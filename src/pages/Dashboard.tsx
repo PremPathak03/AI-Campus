@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSchedules, useClasses } from "@/hooks/useSchedules";
 import { useNotificationSettings } from "@/hooks/useNotificationSettings";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useFirebaseMessaging } from "@/hooks/useFirebaseMessaging";
 import { format } from "date-fns";
 import { DashboardSkeleton } from "@/components/SkeletonLoaders";
 
@@ -21,6 +22,7 @@ const Dashboard = () => {
   const { data: classes } = useClasses(schedules?.[0]?.id);
   const { data: settings } = useNotificationSettings(userId);
   const { permission, requestPermission, scheduleClassReminder } = useNotifications();
+  const { requestPermissionAndGetToken } = useFirebaseMessaging(userId);
   const [showNotificationBanner, setShowNotificationBanner] = useState(false);
 
   useEffect(() => {
@@ -52,24 +54,10 @@ const Dashboard = () => {
   }, [classes, settings, permission, scheduleClassReminder]);
 
   const handleEnableNotifications = async () => {
-    const granted = await requestPermission();
     setShowNotificationBanner(false);
     
-    // Create or update notification settings in database
-    if (userId) {
-      const { supabase } = await import("@/integrations/supabase/client");
-      await supabase
-        .from("notification_settings")
-        .upsert({
-          user_id: userId,
-          enabled: granted, // Only enable if permission was granted
-          reminder_minutes: 15,
-          sound_enabled: true,
-          dnd_enabled: false,
-        })
-        .select()
-        .single();
-    }
+    // Use Firebase Cloud Messaging to get token and enable notifications
+    await requestPermissionAndGetToken();
   };
 
   const getNextClass = () => {
