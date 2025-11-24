@@ -2,6 +2,9 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// Gemini API key (set via: npx supabase secrets set GEMINI_API_KEY=.... )
+const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+
 // Input validation
 interface ChatInput {
   conversationId: string;
@@ -45,29 +48,25 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const CAMPUS_KNOWLEDGE = `You are AI Campus Assistant, a helpful AI assistant for college students.
+const CAMPUS_KNOWLEDGE = `You are AI Campus Assistant for JIS University, a helpful AI assistant for college students.
 
 CAMPUS INFORMATION:
-- Campus Library: Open Monday-Friday 8AM-10PM, Saturday-Sunday 10AM-8PM. Located in Building A, floors 1-4.
-- Student Services: Building B, 1st floor. Hours: Monday-Friday 9AM-5PM. Handles registration, financial aid, transcripts.
-- Computer Labs: Available in Buildings A, C, and D. Open 24/7 with student ID card access.
-- Cafeteria: Building E, serves breakfast 7AM-10AM, lunch 11AM-2PM, dinner 5PM-8PM.
-- Gym & Recreation: Building F, open 6AM-10PM daily. Free for all students.
-- Health Center: Building G, open Monday-Friday 8AM-5PM. Emergency services available 24/7.
-- Parking: Student parking in Lots A, B, C. Visitor parking in Lot D. Parking permits required.
-- Wi-Fi: Campus-wide Wi-Fi available. Network name: "CampusNet". Login with student credentials.
-- Office Hours: Most professors hold office hours Tuesday/Thursday afternoons. Check your syllabus for specific times.
-- Academic Advising: Schedule appointments through the Student Portal or visit Building B, 2nd floor.
+- Campus Library: Open Monday-Friday 9:40AM-5PM, Located in Building A, 1st Floor.
+- Student Services: Building A, Ground floor. Hours: Monday-Saturday 9AM-5PM. Handles registration, financial aid, transcripts.
+- Computer Labs: Available in Buildings A, On Floors 8, 9 and 10.
+- Cafeteria: Building B, serves breakfast 10AM-1PM, lunch 1PM-2PM.
+- Canteen: Building C, serves only lunch 1PM-2PM.
+- Health Center: Building A.
+- Parking: Student parking in Lots beside the pond. Visitor parking beside the NiT ground. Parking permits required.
+- Wi-Fi: Campus-wide Wi-Fi available. Network name: "JISU HOTSPOT". Login with student credentials.
+- Office Hours: Same as Student Services.
+- Academic Advising: Visit Building A, Ground floor.
 
 BUILDING DIRECTORY:
-- Building A: Library, Computer Labs (2nd floor), Study Rooms
-- Building B: Administration, Student Services, Academic Advising
-- Building C: Engineering & Sciences, Computer Labs (1st floor)
-- Building D: Arts & Humanities, Computer Labs (basement)
-- Building E: Cafeteria, Student Lounge
-- Building F: Gym, Recreation Center, Pool
-- Building G: Health Center, Counseling Services
-
+- Building A: Main University Building, Library (1st floor), Student Services (ground floor), Health Center (2nd floor)
+- Building B: NIT Cafeteria on Ground floor.
+- Building C: Canteen on 1st floor, behind building A.
+Instead of using "Building A/B/C", refer to specific locations like "Main University Building", "NiT Building", or "Canteen Building" for clarity.
 IMPORTANT DATES:
 - Registration opens: 2 weeks before semester starts
 - Add/Drop deadline: First week of semester
@@ -141,52 +140,56 @@ serve(async (req) => {
       { role: 'user', content: message },
     ];
 
-    console.log('Sending request to Lovable AI...');
+    console.log('Sending request directly to Gemini API...');
 
-    // Call Lovable AI
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-    if (!lovableApiKey) {
-      throw new Error('LOVABLE_API_KEY not configured');
+    if (!geminiApiKey) {
+      throw new Error('GEMINI_API_KEY not configured');
     }
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    // Transform chat messages to Gemini generateContent format
+    // Gemini expects an ordered array of contents with parts. We'll include:
+    // 1. System prompt (as initial content)
+    // 2. Prior conversation messages mapped to user/model roles
+    // 3. Current user message
+    const geminiContents: Array<{ role?: string; parts: { text: string }[] }> = [];
+    geminiContents.push({ parts: [{ text: CAMPUS_KNOWLEDGE }] });
+    for (const m of messages || []) {
+      if (m.role === 'user') {
+        geminiContents.push({ role: 'user', parts: [{ text: m.content }] });
+      } else if (m.role === 'assistant') {
+        geminiContents.push({ role: 'model', parts: [{ text: m.content }] });
+      }
+      // ignore any stored system messages beyond our static CAMPUS_KNOWLEDGE
+    }
+    geminiContents.push({ role: 'user', parts: [{ text: message }] });
+
+    const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: chatMessages,
-        temperature: 0.7,
+        contents: geminiContents,
+        generationConfig: {
+          temperature: 0.7,
+        }
       }),
     });
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('Lovable AI error:', aiResponse.status, errorText);
-      
-      if (aiResponse.status === 429) {
+    if (!geminiResponse.ok) {
+      const errorText = await geminiResponse.text();
+      console.error('Gemini API error:', geminiResponse.status, errorText);
+      if (geminiResponse.status === 429) {
         return new Response(
-          JSON.stringify({ error: 'Rate limit exceeded. Please try again in a moment.' }),
+          JSON.stringify({ error: 'Rate limit exceeded. Please try again shortly.' }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      
-      if (aiResponse.status === 402) {
-        return new Response(
-          JSON.stringify({ error: 'AI service quota exceeded. Please contact support.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      throw new Error(`AI API error: ${aiResponse.status}`);
+      throw new Error(`Gemini API error: ${geminiResponse.status}`);
     }
 
-    const aiData = await aiResponse.json();
-    const assistantMessage = aiData.choices[0].message.content;
+    const aiData = await geminiResponse.json();
+    const assistantMessage = aiData.candidates?.[0]?.content?.parts?.[0]?.text ?? 'Sorry, I could not generate a response.';
 
-    console.log('AI response received, saving to database...');
+    console.log('Gemini response received, saving to database...');
 
     // Save assistant message
     const { error: assistantError } = await supabase

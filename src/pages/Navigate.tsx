@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import Layout from "@/components/Layout";
+import Layout from "@/components/layout/Layout";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,8 +15,8 @@ import {
   generateDirections,
   RoomWithBuilding,
 } from "@/hooks/useNavigation";
-import RoomCard from "@/components/RoomCard";
-import DirectionsDisplay from "@/components/DirectionsDisplay";
+import RoomCard from "@/components/navigation/RoomCard";
+import DirectionsDisplay from "@/components/navigation/DirectionsDisplay";
 import { useToast } from "@/hooks/use-toast";
 
 const Navigate = () => {

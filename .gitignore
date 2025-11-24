@@ -22,3 +22,34 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Secrets and sensitive files
+.env
+.env.*
+!.env.example
+google-services.json
+android/app/google-services.json
+firebase-adminsdk*.json
+serviceAccountKey.json
+*-key.json
+*.keystore
+*.jks
+
+# Supabase
+supabase/.temp
+supabase/functions/**/*.ts
+
+# Android
+android/local.properties
+android/.gradle
+android/build
+android/app/build
+android/app/release
+android/app/debug
+
+# Temporary documentation
+*_GUIDE.md
+*_SETUP.md
+*_FIX.md
+FIXES_APPLIED.md
+REORGANIZATION_PLAN.md

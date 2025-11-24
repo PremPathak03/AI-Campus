@@ -11,6 +11,7 @@ export type NotificationSettings = {
   dnd_enabled: boolean;
   dnd_start_time: string | null;
   dnd_end_time: string | null;
+  fcm_token: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -60,7 +61,10 @@ export const useUpsertNotificationSettings = () => {
     mutationFn: async (settings: Partial<NotificationSettings> & { user_id: string }) => {
       const { data, error } = await supabase
         .from("notification_settings")
-        .upsert(settings)
+        .upsert(settings, {
+          onConflict: 'user_id',
+          ignoreDuplicates: false
+        })
         .select()
         .single();
       

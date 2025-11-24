@@ -2,7 +2,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,6 +13,8 @@ const corsHeaders = {
 interface ParseScheduleInput {
   fileContent: string;
   fileName: string;
+  fileType?: string;
+  fileBase64?: string;
 }
 
 function validateInput(input: any): { valid: boolean; error?: string; data?: ParseScheduleInput } {
@@ -38,7 +40,8 @@ function validateInput(input: any): { valid: boolean; error?: string; data?: Par
     return { valid: false, error: 'fileName too long (max 255 characters)' };
   }
 
-  if (!/^[\w\-. ]+$/.test(fileName)) {
+  // Allow most common filename characters including Unicode
+  if (/[\x00-\x1F\x7F<>:"\/\\|?*]/.test(fileName)) {
     return { valid: false, error: 'fileName contains invalid characters' };
   }
 
@@ -56,6 +59,48 @@ interface ParsedClass {
   end_time: string;
   days_of_week: string[];
   notes?: string;
+}
+
+function heuristicParse(content: string): ParsedClass[] {
+  const lines = content.split(/\r?\n/).map(l => l.trim()).filter(l => l.length);
+  const classes: ParsedClass[] = [];
+  // Very basic heuristic: group lines that contain a time range HH:MM - HH:MM
+  const timeRangeRegex = /(0?[0-9]|1[0-9]|2[0-3]):[0-5][0-9]\s*-\s*(0?[0-9]|1[0-9]|2[0-3]):[0-5][0-9]/;
+  const dayWords = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]; 
+  let buffer: string[] = [];
+  for (const line of lines) {
+    buffer.push(line);
+    if (timeRangeRegex.test(line)) {
+      // Attempt to build a class from buffer
+      const timeMatch = line.match(timeRangeRegex);
+      if (timeMatch) {
+        const [start, end] = timeMatch[0].split(/-+/).map(s => s.trim());
+        // Find days
+        const daysLine = buffer.find(b => dayWords.some(d => b.toLowerCase().includes(d.toLowerCase())));
+        const days: string[] = [];
+        if (daysLine) {
+          for (const d of dayWords) {
+            if (daysLine.toLowerCase().includes(d.toLowerCase())) days.push(d);
+          }
+        }
+        // Course name heuristic: first non-empty line in buffer
+        const courseLine = buffer[0] || "Untitled Course";
+        classes.push({
+          course_name: courseLine.replace(timeRangeRegex, '').trim() || 'Untitled Course',
+          start_time: start,
+          end_time: end,
+          days_of_week: days.length ? days : dayWords.filter(d => d !== 'Sunday' && d !== 'Saturday').slice(0,5), // fallback weekdays
+          room_number: undefined,
+          building: undefined,
+          floor: undefined,
+          professor: undefined,
+        });
+      }
+      buffer = [];
+    }
+    if (buffer.length > 10) buffer = []; // avoid runaway buffer
+  }
+  return classes;
 }
 
 serve(async (req) => {
@@ -102,18 +147,52 @@ serve(async (req) => {
 
     console.log('Parsing schedule file:', fileName);
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          { 
-            role: 'system', 
-            content: `You are a schedule parser that extracts class information from various document formats.
+    // If no Gemini key, fall back to heuristic parser
+    if (!geminiApiKey) {
+      const fallback = heuristicParse(fileContent);
+      return new Response(
+        JSON.stringify({ classes: fallback, warnings: ['GEMINI_API_KEY missing - used heuristic parser'] }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    let parsedClasses: ParsedClass[] = [];
+    let warnings: string[] = [];
+    
+    // Model hierarchy: Try models in order until one succeeds
+    const models = [
+      'gemini-2.5-pro',
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-2.5-flash-lite'
+    ];
+    
+    let lastError = null;
+    
+    for (const model of models) {
+      try {
+        console.log(`Attempting to use model: ${model}`);
+        
+        const payload: any = {
+          generationConfig: {
+            temperature: 0.2,
+            responseMimeType: "application/json"
+          }
+        };
+
+        // Check if we have base64 PDF data
+        if (requestBody.fileBase64 && requestBody.fileType === 'application/pdf') {
+          // Send PDF directly to Gemini for better accuracy
+          payload.contents = [{
+            parts: [
+              {
+                inlineData: {
+                  mimeType: 'application/pdf',
+                  data: requestBody.fileBase64
+                }
+              },
+              {
+                text: `You are a schedule parser that extracts class information from this PDF document.
 Extract ALL classes with the following information:
 - course_name (required)
 - course_code (optional)
@@ -127,53 +206,97 @@ Extract ALL classes with the following information:
 - notes (optional)
 
 Return ONLY valid JSON array of classes. No markdown, no explanations.`
+              }
+            ]
+          }];
+        } else {
+          // Use text content
+          payload.contents = [{
+            parts: [{
+              text: `You are a schedule parser that extracts class information from various document formats.
+Extract ALL classes with the following information:
+- course_name (required)
+- course_code (optional)
+- professor (optional)
+- room_number (optional)
+- building (optional)
+- floor (optional, extract from room number if possible, e.g., "301" -> "3")
+- start_time (required, format as HH:MM in 24-hour format)
+- end_time (required, format as HH:MM in 24-hour format)
+- days_of_week (required, array of days: ["Monday", "Tuesday", etc.])
+- notes (optional)
+
+Return ONLY valid JSON array of classes. No markdown, no explanations.
+
+Parse this schedule and return a JSON array of classes:
+
+${fileContent}`
+            }]
+          }];
+        }
+
+        console.log(`Sending payload to ${model}...`);
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
           },
-          { 
-            role: 'user', 
-            content: `Parse this schedule and return a JSON array of classes:\n\n${fileContent}` 
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`${model} API error:`, response.status, errorText);
+          
+          if (response.status === 429) {
+            console.log(`Rate limit hit on ${model}, trying next model...`);
+            lastError = `Rate limit on ${model}`;
+            continue; // Try next model
           }
-        ],
-        temperature: 0.3,
-      }),
-    });
+          
+          if (response.status === 400) {
+            console.log(`Bad request on ${model}, trying next model...`);
+            lastError = `Invalid request for ${model}`;
+            continue;
+          }
+          
+          throw new Error(`${model} error: ${response.status}`);
+        }
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OpenAI API error:', response.status, errorText);
-      throw new Error(`OpenAI API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const generatedText = data.choices[0].message.content;
-
-    console.log('Raw AI response:', generatedText);
-
-    // Parse the JSON response
-    let parsedClasses: ParsedClass[];
-    try {
-      // Remove markdown code blocks if present
-      const cleanedText = generatedText
-        .replace(/```json\n?/g, '')
-        .replace(/```\n?/g, '')
-        .trim();
-      
-      parsedClasses = JSON.parse(cleanedText);
-      
-      if (!Array.isArray(parsedClasses)) {
-        throw new Error('Response is not an array');
+        const data = await response.json();
+        const generatedText = data.candidates[0].content.parts[0].text;
+        const cleanedText = generatedText
+          .replace(/```json\n?/g, '')
+          .replace(/```\n?/g, '')
+          .trim();
+        parsedClasses = JSON.parse(cleanedText);
+        
+        if (!Array.isArray(parsedClasses)) {
+          throw new Error('AI response not array');
+        }
+        
+        console.log(`Successfully parsed with ${model}`);
+        warnings.push(`Parsed using ${model}`);
+        break; // Success, exit loop
+        
+      } catch (e) {
+        console.error(`Failed with ${model}:`, e);
+        lastError = e;
+        // Continue to next model
       }
-
-      console.log('Successfully parsed classes:', parsedClasses.length);
-    } catch (parseError) {
-      console.error('Failed to parse AI response:', parseError, generatedText);
-      throw new Error('Failed to parse schedule data from AI response');
+    }
+    
+    // If all models failed, use heuristic parser
+    if (parsedClasses.length === 0) {
+      console.error('All AI models failed, using heuristic parser. Last error:', lastError);
+      warnings.push('All AI models failed - used heuristic parser');
+      parsedClasses = heuristicParse(fileContent);
     }
 
     return new Response(
-      JSON.stringify({ classes: parsedClasses }), 
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      JSON.stringify({ classes: parsedClasses, warnings }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
     console.error('Error in parse-schedule function:', error);

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import Layout from "@/components/Layout";
+import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,9 +17,9 @@ import {
 } from "@/hooks/useSchedules";
 import { useNotificationSettings } from "@/hooks/useNotificationSettings";
 import { useNotifications } from "@/hooks/useNotifications";
-import ClassCard from "@/components/ClassCard";
-import ClassForm from "@/components/ClassForm";
-import ScheduleImport from "@/components/ScheduleImport";
+import ClassCard from "@/components/schedule/ClassCard";
+import ClassForm from "@/components/schedule/ClassForm";
+import ScheduleImport from "@/components/schedule/ScheduleImport";
 
 const DAYS_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -30,6 +30,8 @@ const Schedule = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [editingClass, setEditingClass] = useState<Class | null>(null);
   const [viewMode, setViewMode] = useState<"daily" | "weekly">("weekly");
+  const [selectedClasses, setSelectedClasses] = useState<Set<string>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   const { data: schedules } = useSchedules(userId);
   const { data: classes } = useClasses(selectedScheduleId);
@@ -89,6 +91,37 @@ const Schedule = () => {
     }
   };
 
+  const handleToggleSelection = (classId: string) => {
+    const newSelection = new Set(selectedClasses);
+    if (newSelection.has(classId)) {
+      newSelection.delete(classId);
+    } else {
+      newSelection.add(classId);
+    }
+    setSelectedClasses(newSelection);
+  };
+
+  const handleSelectAll = () => {
+    if (!classes) return;
+    const allClassIds = new Set(classes.map(c => c.id));
+    setSelectedClasses(allClassIds);
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedClasses(new Set());
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedClasses.size === 0) return;
+    if (confirm(`Are you sure you want to delete ${selectedClasses.size} selected class(es)?`)) {
+      for (const classId of selectedClasses) {
+        await deleteClass.mutateAsync(classId);
+      }
+      setSelectedClasses(new Set());
+      setIsSelectionMode(false);
+    }
+  };
+
   const getTodayClasses = () => {
     if (!classes) return [];
     const today = DAYS_ORDER[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
@@ -117,11 +150,11 @@ const Schedule = () => {
   if (!schedules || schedules.length === 0) {
     return (
       <Layout>
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <CalendarIcon className="h-16 w-16 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground mb-4">No schedule created yet</p>
-            <Button onClick={handleCreateSchedule}>Create Schedule</Button>
+        <Card className="max-w-md mx-auto">
+          <CardContent className="flex flex-col items-center justify-center py-12 px-4">
+            <CalendarIcon className="h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground mb-4" />
+            <p className="text-sm sm:text-base text-muted-foreground mb-4 text-center">No schedule created yet</p>
+            <Button onClick={handleCreateSchedule} size="sm">Create Schedule</Button>
           </CardContent>
         </Card>
       </Layout>
@@ -133,70 +166,131 @@ const Schedule = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Schedule</h1>
-            <p className="text-muted-foreground">Manage your class schedule</p>
+      <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold truncate">Schedule</h1>
+            <p className="text-sm text-muted-foreground truncate">
+              {isSelectionMode
+                ? `${selectedClasses.size} selected`
+                : "Manage your class schedule"}
+            </p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setIsImporting(true)}>
-              <Upload className="mr-2 h-4 w-4" />
-              Import
-            </Button>
-            <Button onClick={() => setIsAddingClass(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Class
-            </Button>
+          <div className="flex flex-wrap gap-2">
+            {isSelectionMode ? (
+              <>
+                <Button variant="outline" size="sm" onClick={handleSelectAll}>
+                  All
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleDeselectAll}>
+                  None
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBulkDelete}
+                  disabled={selectedClasses.size === 0}
+                >
+                  Delete ({selectedClasses.size})
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => {
+                  setIsSelectionMode(false);
+                  setSelectedClasses(new Set());
+                }}>
+                  Cancel
+                </Button>
+              </>
+            ) : (
+              <>
+                {classes && classes.length > 0 && (
+                  <Button variant="outline" size="sm" onClick={() => setIsSelectionMode(true)}>
+                    Select
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" onClick={() => setIsImporting(true)}>
+                  <Upload className="mr-1 h-4 w-4" />
+                  <span className="hidden sm:inline">Import</span>
+                </Button>
+                <Button size="sm" onClick={() => setIsAddingClass(true)}>
+                  <Plus className="mr-1 h-4 w-4" />
+                  <span className="hidden sm:inline">Add Class</span>
+                  <span className="sm:hidden">Add</span>
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
-        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "daily" | "weekly")}>
-          <TabsList>
-            <TabsTrigger value="daily">Today</TabsTrigger>
-            <TabsTrigger value="weekly">Week</TabsTrigger>
+        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "daily" | "weekly")} className="w-full">
+          <TabsList className="w-full sm:w-auto">
+            <TabsTrigger value="daily" className="flex-1 sm:flex-none">Today</TabsTrigger>
+            <TabsTrigger value="weekly" className="flex-1 sm:flex-none">Week</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="daily" className="space-y-3">
+          <TabsContent value="daily" className="space-y-2 sm:space-y-3 mt-4">
             {todayClasses.length === 0 ? (
               <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <p className="text-muted-foreground">No classes today</p>
+                <CardContent className="flex flex-col items-center justify-center py-8 sm:py-12">
+                  <p className="text-sm text-muted-foreground">No classes today</p>
                 </CardContent>
               </Card>
             ) : (
               todayClasses.map((cls) => (
-                <ClassCard
-                  key={cls.id}
-                  classItem={cls}
-                  onEdit={setEditingClass}
-                  onDelete={handleDeleteClass}
-                />
+                <div key={cls.id} className="flex items-center gap-3">
+                  {isSelectionMode && (
+                    <input
+                      type="checkbox"
+                      checked={selectedClasses.has(cls.id)}
+                      onChange={() => handleToggleSelection(cls.id)}
+                      className="h-5 w-5 rounded border-gray-300"
+                    />
+                  )}
+                  <div className="flex-1">
+                    <ClassCard
+                      key={cls.id}
+                      classItem={cls}
+                      onEdit={isSelectionMode ? undefined : setEditingClass}
+                      onDelete={isSelectionMode ? undefined : handleDeleteClass}
+                    />
+                  </div>
+                </div>
               ))
             )}
           </TabsContent>
 
-          <TabsContent value="weekly" className="space-y-6">
+          <TabsContent value="weekly" className="space-y-4 sm:space-y-6 mt-4">
             {DAYS_ORDER.map((day) => (
               <div key={day}>
-                <h3 className="font-semibold mb-3">{day}</h3>
-                <div className="space-y-3">
+                <h3 className="font-semibold text-base sm:text-lg mb-2 sm:mb-3">{day}</h3>
+                <div className="space-y-2 sm:space-y-3">
                   {classesByDay[day]?.length === 0 ? (
                     <Card>
-                      <CardContent className="py-6">
-                        <p className="text-sm text-muted-foreground text-center">
+                      <CardContent className="py-4 sm:py-6">
+                        <p className="text-xs sm:text-sm text-muted-foreground text-center">
                           No classes
                         </p>
                       </CardContent>
                     </Card>
                   ) : (
                     classesByDay[day]?.map((cls) => (
-                      <ClassCard
-                        key={cls.id}
-                        classItem={cls}
-                        onEdit={setEditingClass}
-                        onDelete={handleDeleteClass}
-                      />
+                      <div key={cls.id} className="flex items-center gap-3">
+                        {isSelectionMode && (
+                          <input
+                            type="checkbox"
+                            checked={selectedClasses.has(cls.id)}
+                            onChange={() => handleToggleSelection(cls.id)}
+                            className="h-5 w-5 rounded border-gray-300"
+                          />
+                        )}
+                        <div className="flex-1">
+                          <ClassCard
+                            key={cls.id}
+                            classItem={cls}
+                            onEdit={isSelectionMode ? undefined : setEditingClass}
+                            onDelete={isSelectionMode ? undefined : handleDeleteClass}
+                          />
+                        </div>
+                      </div>
                     ))
                   )}
                 </div>

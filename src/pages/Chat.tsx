@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import Layout from "@/components/Layout";
+import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Send, Plus, Loader2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useConversations, useMessages, useCreateConversation, useSendMessage } from "@/hooks/useChat";
-import ChatMessage from "@/components/ChatMessage";
+import ChatMessage from "@/components/chat/ChatMessage";
 import { useToast } from "@/hooks/use-toast";
 import { ChatSkeleton } from "@/components/SkeletonLoaders";
 
@@ -83,8 +83,8 @@ const Chat = () => {
 
   const suggestedQuestions = [
     "What are the library hours?",
-    "Where is the cafeteria?",
-    "How do I access the gym?",
+    "Where is the canteen?",
+    "How do I access university Wi-Fi?",
     "Where can I find computer labs?",
   ];
 

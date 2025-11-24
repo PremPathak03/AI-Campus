@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Layout from "@/components/Layout";
+import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,9 +11,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNotificationSettings, useUpsertNotificationSettings } from "@/hooks/useNotificationSettings";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useFirebaseMessaging } from "@/hooks/useFirebaseMessaging";
+import { useNativePushNotifications } from "@/hooks/useNativePushNotifications";
 import { useToast } from "@/hooks/use-toast";
-import { Bell, LogOut, User, Clock, Moon, Sun, Monitor } from "lucide-react";
+import { Bell, LogOut, User, Clock, Moon, Sun, Monitor, ArrowLeft } from "lucide-react";
 import { useTheme } from "next-themes";
+import { Capacitor } from "@capacitor/core";
+import { LocalNotifications } from "@capacitor/local-notifications";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -26,8 +29,12 @@ const Profile = () => {
 
   const { data: settings } = useNotificationSettings(userId);
   const upsertSettings = useUpsertNotificationSettings();
-  const { permission, requestPermission, testNotification } = useNotifications();
-  const { requestPermissionAndGetToken } = useFirebaseMessaging(userId);
+  const { permission, requestPermission, testNotification: testWebNotification } = useNotifications();
+  
+  // Use native push notifications on mobile, Firebase on web
+  const isNative = Capacitor.isNativePlatform();
+  const { requestPermissionAndGetToken: requestNativeToken } = useNativePushNotifications(userId);
+  const { requestPermissionAndGetToken: requestWebToken } = useFirebaseMessaging(userId);
 
   const [enabled, setEnabled] = useState(true);
   const [reminderMinutes, setReminderMinutes] = useState(15);
@@ -99,29 +106,130 @@ const Profile = () => {
       return;
     }
 
-    // If user wants to enable notifications, get FCM token
-    if (enabled && permission !== "granted") {
-      const token = await requestPermissionAndGetToken();
-      if (!token) {
+    try {
+      // If user wants to enable notifications, get FCM token
+      if (enabled && permission !== "granted") {
+        try {
+          const token = isNative 
+            ? await requestNativeToken()
+            : await requestWebToken();
+          
+          if (!token) {
+            toast({
+              title: "Failed to enable notifications",
+              description: "Please allow notifications in your settings",
+              variant: "destructive",
+            });
+            return;
+          }
+          // Token is already saved by the respective hook
+          toast({
+            title: "Notifications enabled",
+            description: "You'll receive class reminders",
+          });
+          return;
+        } catch (tokenError) {
+          console.error("Token request error:", tokenError);
+          toast({
+            title: "Failed to get notification token",
+            description: tokenError instanceof Error ? tokenError.message : "Unknown error",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      // Save settings to database
+      const settingsToUpdate: any = {
+        user_id: userId,
+        enabled,
+        reminder_minutes: reminderMinutes,
+        sound_enabled: soundEnabled,
+        dnd_enabled: dndEnabled,
+        dnd_start_time: dndEnabled ? dndStart : null,
+        dnd_end_time: dndEnabled ? dndEnd : null,
+      };
+
+      // Preserve existing fcm_token if it exists
+      if (settings?.fcm_token) {
+        settingsToUpdate.fcm_token = settings.fcm_token;
+      }
+
+      upsertSettings.mutate(settingsToUpdate, {
+        onSuccess: () => {
+          toast({
+            title: "Settings saved",
+            description: "Your notification preferences have been updated",
+          });
+        },
+        onError: (error: any) => {
+          console.error("Settings save error:", error);
+          toast({
+            title: "Failed to save settings",
+            description: error?.message || "An error occurred",
+            variant: "destructive",
+          });
+        }
+      });
+    } catch (error) {
+      console.error("Error saving notification settings:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save settings",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleTestNotification = async () => {
+    if (isNative) {
+      // Test with local notification on native
+      try {
+        const permResult = await LocalNotifications.checkPermissions();
+        
+        if (permResult.display !== 'granted') {
+          const requested = await LocalNotifications.requestPermissions();
+          if (requested.display !== 'granted') {
+            toast({
+              title: "Permission denied",
+              description: "Please allow notifications to test",
+              variant: "destructive",
+            });
+            return;
+          }
+        }
+
+        await LocalNotifications.schedule({
+          notifications: [
+            {
+              title: "Test Notification 🔔",
+              body: "This is how your class reminders will look!",
+              id: Math.floor(Math.random() * 100000),
+              schedule: { at: new Date(Date.now() + 1000) }, // 1 second delay
+              sound: undefined,
+              attachments: undefined,
+              actionTypeId: "",
+              extra: null,
+            }
+          ]
+        });
+
         toast({
-          title: "Failed to enable notifications",
-          description: "Please allow notifications in your browser settings",
+          title: "Test notification scheduled",
+          description: "You should receive it in 1 second!",
+        });
+      } catch (error) {
+        console.error("Error scheduling test notification:", error);
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to send test notification",
           variant: "destructive",
         });
-        return;
       }
+    } else {
+      // Use web notification for web platform
+      testWebNotification();
     }
-
-    // Save settings to database
-    upsertSettings.mutate({
-      user_id: userId,
-      enabled,
-      reminder_minutes: reminderMinutes,
-      sound_enabled: soundEnabled,
-      dnd_enabled: dndEnabled,
-      dnd_start_time: dndEnabled ? dndStart : null,
-      dnd_end_time: dndEnabled ? dndEnd : null,
-    });
   };
 
   const handleLogout = async () => {
@@ -133,9 +241,20 @@ const Profile = () => {
     <Layout>
       <div className="container max-w-2xl mx-auto p-4 space-y-6 pb-24 animate-fade-in">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-foreground">Settings</h1>
-          <Button variant="ghost" size="icon" onClick={handleLogout}>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => navigate("/dashboard")}
+              className="h-9 w-9"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Settings</h1>
+          </div>
+          <Button variant="ghost" onClick={handleLogout} className="gap-2">
             <LogOut className="h-5 w-5" />
+            <span className="hidden sm:inline">Sign Out</span>
           </Button>
         </div>
 
@@ -319,11 +438,6 @@ const Profile = () => {
               <Button onClick={handleSaveNotificationSettings}>
                 Save Notification Settings
               </Button>
-              {permission === "granted" && (
-                <Button variant="outline" onClick={testNotification}>
-                  Test Notification
-                </Button>
-              )}
             </div>
 
             {permission === "denied" && (

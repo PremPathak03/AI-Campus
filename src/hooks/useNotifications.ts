@@ -2,18 +2,33 @@ import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Class } from "./useSchedules";
 import { NotificationSettings } from "./useNotificationSettings";
+import { Capacitor } from "@capacitor/core";
 
 export const useNotifications = () => {
   const [permission, setPermission] = useState<NotificationPermission>("default");
   const { toast } = useToast();
+  const isNative = Capacitor.isNativePlatform();
 
   useEffect(() => {
-    if ("Notification" in window) {
+    // Only check web Notification API on web platform
+    if (!isNative && "Notification" in window) {
       setPermission(Notification.permission);
+    } else if (isNative) {
+      // On native, assume granted (actual permission handled by native hooks)
+      setPermission("granted");
     }
-  }, []);
+  }, [isNative]);
 
   const requestPermission = async () => {
+    // Don't use web Notification API on native platform
+    if (isNative) {
+      toast({
+        title: "Use native notifications",
+        description: "Please enable notifications in Profile settings",
+      });
+      return false;
+    }
+
     if (!("Notification" in window)) {
       toast({
         title: "Notifications not supported",
@@ -79,7 +94,7 @@ export const useNotifications = () => {
   };
 
   const showNotification = (classData: Class, settings: NotificationSettings) => {
-    if (permission !== "granted") return;
+    if (permission !== "granted" || isNative) return;
 
     const notification = new Notification(`Class Starting Soon!`, {
       body: `${classData.course_name} in ${settings.reminder_minutes} minutes\nRoom: ${classData.room_number || "TBA"}`,
@@ -97,6 +112,14 @@ export const useNotifications = () => {
   };
 
   const testNotification = () => {
+    if (isNative) {
+      toast({
+        title: "Native platform",
+        description: "Test notifications work automatically on native apps",
+      });
+      return;
+    }
+
     if (permission !== "granted") {
       toast({
         title: "Permission required",
