@@ -1,81 +1,42 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import Layout from "@/components/layout/Layout";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, MapPin, Star, Clock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import {
-  useSearchRooms,
-  useFavorites,
-  useRecentSearches,
-  useAddFavorite,
-  useRemoveFavorite,
-  useAddRecentSearch,
+  useNavigationData,
   generateDirections,
   RoomWithBuilding,
 } from "@/hooks/useNavigation";
 import RoomCard from "@/components/navigation/RoomCard";
 import DirectionsDisplay from "@/components/navigation/DirectionsDisplay";
-import { useToast } from "@/hooks/use-toast";
 
 const Navigate = () => {
-  const [userId, setUserId] = useState<string | undefined>();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRoom, setSelectedRoom] = useState<RoomWithBuilding | null>(null);
-  const { toast } = useToast();
 
-  const { data: searchResults = [] } = useSearchRooms(searchTerm);
-  const { data: favorites = [] } = useFavorites(userId);
-  const { data: recentSearches = [] } = useRecentSearches(userId);
-  
-  const addFavorite = useAddFavorite();
-  const removeFavorite = useRemoveFavorite();
-  const addRecentSearch = useAddRecentSearch();
+  const {
+    searchRooms,
+    getFavoriteRooms,
+    getRecentRooms,
+    toggleFavorite,
+    isFavorite,
+    addRecentSearch,
+  } = useNavigationData();
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        setUserId(user.id);
-      }
-    });
-  }, []);
+  // Memoize search results to avoid unnecessary re-renders
+  const searchResults = useMemo(() => searchRooms(searchTerm), [searchTerm, searchRooms]);
+  const favoriteRooms = useMemo(() => getFavoriteRooms(), [getFavoriteRooms]);
+  const recentRooms = useMemo(() => getRecentRooms(), [getRecentRooms]);
 
   const handleNavigate = (room: RoomWithBuilding) => {
     setSelectedRoom(room);
-    
-    if (userId) {
-      addRecentSearch.mutate({
-        user_id: userId,
-        room_id: room.id,
-      });
-    }
+    addRecentSearch(room.id);
   };
 
   const handleToggleFavorite = (room: RoomWithBuilding) => {
-    if (!userId) {
-      toast({
-        title: "Authentication required",
-        description: "Please log in to save favorites",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const existingFavorite = favorites.find(f => f.room_id === room.id);
-    
-    if (existingFavorite) {
-      removeFavorite.mutate(existingFavorite.id);
-    } else {
-      addFavorite.mutate({
-        user_id: userId,
-        room_id: room.id,
-      });
-    }
-  };
-
-  const isFavorite = (roomId: string) => {
-    return favorites.some(f => f.room_id === roomId);
+    toggleFavorite(room.id);
   };
 
   return (
@@ -90,7 +51,7 @@ const Navigate = () => {
         <div className="relative">
           <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
           <Input
-            placeholder="Search by room number or building..."
+            placeholder="Search by room number, building, or room type..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -116,6 +77,11 @@ const Navigate = () => {
             <TabsTrigger value="favorites">
               <Star className="h-4 w-4 mr-2" />
               Favorites
+              {favoriteRooms.length > 0 && (
+                <span className="ml-1 text-xs bg-primary text-primary-foreground rounded-full px-2 py-0.5">
+                  {favoriteRooms.length}
+                </span>
+              )}
             </TabsTrigger>
             <TabsTrigger value="recent">
               <Clock className="h-4 w-4 mr-2" />
@@ -129,9 +95,19 @@ const Navigate = () => {
                 <CardHeader>
                   <CardTitle>Search for Rooms</CardTitle>
                   <CardDescription>
-                    Enter a room number or building name to find your destination
+                    Enter a room number, building name, or room type to find your destination
                   </CardDescription>
                 </CardHeader>
+                <CardContent>
+                  <div className="text-sm text-muted-foreground space-y-2">
+                    <p>💡 Tips:</p>
+                    <ul className="list-disc list-inside space-y-1 ml-2">
+                      <li>Search by room number (e.g., "101", "202")</li>
+                      <li>Search by building (e.g., "Engineering", "EB")</li>
+                      <li>Search by type (e.g., "Lab", "Classroom")</li>
+                    </ul>
+                  </div>
+                </CardContent>
               </Card>
             ) : searchResults.length === 0 ? (
               <Card>
@@ -155,22 +131,24 @@ const Navigate = () => {
           </TabsContent>
 
           <TabsContent value="favorites" className="space-y-4 mt-4">
-            {favorites.length === 0 ? (
+            {favoriteRooms.length === 0 ? (
               <Card>
-                <CardContent className="py-8 text-center text-muted-foreground">
-                  {userId
-                    ? "No favorites yet. Star locations you visit frequently!"
-                    : "Please log in to save favorite locations"}
+                <CardContent className="py-8 text-center">
+                  <Star className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground mb-2">No favorites yet</p>
+                  <p className="text-sm text-muted-foreground">
+                    Star locations you visit frequently for quick access
+                  </p>
                 </CardContent>
               </Card>
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
-                {favorites.map((favorite: any) => (
+                {favoriteRooms.map((room) => (
                   <RoomCard
-                    key={favorite.id}
-                    room={favorite.room}
-                    onNavigate={() => handleNavigate(favorite.room)}
-                    onToggleFavorite={() => handleToggleFavorite(favorite.room)}
+                    key={room.id}
+                    room={room}
+                    onNavigate={() => handleNavigate(room)}
+                    onToggleFavorite={() => handleToggleFavorite(room)}
                     isFavorite={true}
                   />
                 ))}
@@ -179,23 +157,25 @@ const Navigate = () => {
           </TabsContent>
 
           <TabsContent value="recent" className="space-y-4 mt-4">
-            {recentSearches.length === 0 ? (
+            {recentRooms.length === 0 ? (
               <Card>
-                <CardContent className="py-8 text-center text-muted-foreground">
-                  {userId
-                    ? "No recent searches. Search for a room to get started!"
-                    : "Please log in to see recent searches"}
+                <CardContent className="py-8 text-center">
+                  <Clock className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground mb-2">No recent searches</p>
+                  <p className="text-sm text-muted-foreground">
+                    Your recently viewed locations will appear here
+                  </p>
                 </CardContent>
               </Card>
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
-                {recentSearches.map((recent: any) => (
+                {recentRooms.map((room) => (
                   <RoomCard
-                    key={recent.id}
-                    room={recent.room}
-                    onNavigate={() => handleNavigate(recent.room)}
-                    onToggleFavorite={() => handleToggleFavorite(recent.room)}
-                    isFavorite={isFavorite(recent.room_id)}
+                    key={room.id}
+                    room={room}
+                    onNavigate={() => handleNavigate(room)}
+                    onToggleFavorite={() => handleToggleFavorite(room)}
+                    isFavorite={isFavorite(room.id)}
                   />
                 ))}
               </div>

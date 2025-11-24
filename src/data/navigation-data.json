@@ -1,0 +1,211 @@
+{
+  "buildings": [
+    {
+      "id": "bldg-1",
+      "name": "Engineering Building",
+      "code": "EB",
+      "description": "Main engineering and technology departments",
+      "address": "123 Campus Drive",
+      "latitude": 37.7749,
+      "longitude": -122.4194
+    },
+    {
+      "id": "bldg-2",
+      "name": "Science Complex",
+      "code": "SC",
+      "description": "Biology, Chemistry, and Physics labs",
+      "address": "456 Science Way",
+      "latitude": 37.7750,
+      "longitude": -122.4195
+    },
+    {
+      "id": "bldg-3",
+      "name": "Library",
+      "code": "LIB",
+      "description": "Main campus library and study spaces",
+      "address": "789 Knowledge Street",
+      "latitude": 37.7751,
+      "longitude": -122.4196
+    },
+    {
+      "id": "bldg-4",
+      "name": "Student Center",
+      "code": "SC",
+      "description": "Student activities, cafeteria, and lounges",
+      "address": "321 Student Plaza",
+      "latitude": 37.7752,
+      "longitude": -122.4197
+    },
+    {
+      "id": "bldg-5",
+      "name": "Business Administration",
+      "code": "BA",
+      "description": "Business, Economics, and Management",
+      "address": "654 Commerce Lane",
+      "latitude": 37.7753,
+      "longitude": -122.4198
+    }
+  ],
+  "rooms": [
+    {
+      "id": "room-1",
+      "building_id": "bldg-1",
+      "room_number": "101",
+      "floor": "1",
+      "room_type": "Lecture Hall",
+      "description": "Large lecture hall with 200 seats"
+    },
+    {
+      "id": "room-2",
+      "building_id": "bldg-1",
+      "room_number": "102",
+      "floor": "1",
+      "room_type": "Computer Lab",
+      "description": "Computer lab with 40 workstations"
+    },
+    {
+      "id": "room-3",
+      "building_id": "bldg-1",
+      "room_number": "201",
+      "floor": "2",
+      "room_type": "Classroom",
+      "description": "Standard classroom with 30 seats"
+    },
+    {
+      "id": "room-4",
+      "building_id": "bldg-1",
+      "room_number": "202",
+      "floor": "2",
+      "room_type": "Lab",
+      "description": "Electronics and circuits lab"
+    },
+    {
+      "id": "room-5",
+      "building_id": "bldg-1",
+      "room_number": "301",
+      "floor": "3",
+      "room_type": "Office",
+      "description": "Faculty offices"
+    },
+    {
+      "id": "room-6",
+      "building_id": "bldg-2",
+      "room_number": "101",
+      "floor": "1",
+      "room_type": "Lab",
+      "description": "Chemistry lab with fume hoods"
+    },
+    {
+      "id": "room-7",
+      "building_id": "bldg-2",
+      "room_number": "102",
+      "floor": "1",
+      "room_type": "Lab",
+      "description": "Biology lab with microscopes"
+    },
+    {
+      "id": "room-8",
+      "building_id": "bldg-2",
+      "room_number": "201",
+      "floor": "2",
+      "room_type": "Lecture Hall",
+      "description": "Science lecture hall with demonstration area"
+    },
+    {
+      "id": "room-9",
+      "building_id": "bldg-2",
+      "room_number": "202",
+      "floor": "2",
+      "room_type": "Lab",
+      "description": "Physics lab with equipment"
+    },
+    {
+      "id": "room-10",
+      "building_id": "bldg-3",
+      "room_number": "101",
+      "floor": "1",
+      "room_type": "Study Area",
+      "description": "Quiet study area with individual desks"
+    },
+    {
+      "id": "room-11",
+      "building_id": "bldg-3",
+      "room_number": "102",
+      "floor": "1",
+      "room_type": "Computer Lab",
+      "description": "Library computer lab and printing"
+    },
+    {
+      "id": "room-12",
+      "building_id": "bldg-3",
+      "room_number": "201",
+      "floor": "2",
+      "room_type": "Reading Room",
+      "description": "Main reading room with book collections"
+    },
+    {
+      "id": "room-13",
+      "building_id": "bldg-3",
+      "room_number": "301",
+      "floor": "3",
+      "room_type": "Study Room",
+      "description": "Group study rooms available for booking"
+    },
+    {
+      "id": "room-14",
+      "building_id": "bldg-4",
+      "room_number": "101",
+      "floor": "1",
+      "room_type": "Cafeteria",
+      "description": "Main cafeteria and food court"
+    },
+    {
+      "id": "room-15",
+      "building_id": "bldg-4",
+      "room_number": "102",
+      "floor": "1",
+      "room_type": "Lounge",
+      "description": "Student lounge with comfortable seating"
+    },
+    {
+      "id": "room-16",
+      "building_id": "bldg-4",
+      "room_number": "201",
+      "floor": "2",
+      "room_type": "Meeting Room",
+      "description": "Student organization meeting rooms"
+    },
+    {
+      "id": "room-17",
+      "building_id": "bldg-5",
+      "room_number": "101",
+      "floor": "1",
+      "room_type": "Classroom",
+      "description": "Business classroom with presentation equipment"
+    },
+    {
+      "id": "room-18",
+      "building_id": "bldg-5",
+      "room_number": "102",
+      "floor": "1",
+      "room_type": "Computer Lab",
+      "description": "Business analytics lab"
+    },
+    {
+      "id": "room-19",
+      "building_id": "bldg-5",
+      "room_number": "201",
+      "floor": "2",
+      "room_type": "Seminar Room",
+      "description": "Executive seminar room"
+    },
+    {
+      "id": "room-20",
+      "building_id": "bldg-5",
+      "room_number": "202",
+      "floor": "2",
+      "room_type": "Office",
+      "description": "Faculty and advisor offices"
+    }
+  ]
+}
