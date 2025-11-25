@@ -245,7 +245,7 @@ const Profile = () => {
             <Button 
               variant="ghost" 
               size="icon" 
-              onClick={() => navigate("/dashboard")}
+              onClick={() => navigate(-1)}
               className="h-9 w-9"
             >
               <ArrowLeft className="h-5 w-5" />
